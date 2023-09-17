@@ -1,0 +1,11 @@
+###
+# @name Get_Exchange
+GET https://economia.awesomeapi.com.br/json/last/USD-BRL
+
+###
+# @name Check_Health
+GET http://localhost:8080/health
+
+###
+# @name Get_Quotation
+GET http://localhost:8080/quotation

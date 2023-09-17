@@ -1,0 +1,12 @@
+version: "3"
+services:
+    server:
+        image: golang:1.21
+        volumes:
+            - ./server:/usr/src/app
+        working_dir: /usr/src/app
+        ports:
+            - 8080:8080
+        environment:
+            - CGO_ENABLED=1
+        command: go run main.go
