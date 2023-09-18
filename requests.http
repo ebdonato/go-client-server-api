@@ -9,3 +9,7 @@ GET http://localhost:8080/health
 ###
 # @name Get_Quotation
 GET http://localhost:8080/quotation
+
+###
+# @name Get_Quotation_Alt
+GET http://localhost:8080/cotacao
