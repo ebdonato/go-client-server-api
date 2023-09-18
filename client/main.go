@@ -43,14 +43,10 @@ func requestExchange(ctx context.Context) (*Exchange, error) {
 	ctx, cancel := context.WithTimeout(ctx, EXCHANGE_REQUEST_TIMEOUT)
 	defer cancel()
 
-	log.Println("preparando requisição...")
-
 	req, err := http.NewRequestWithContext(ctx, "GET", EXCHANGE_URL, nil)
 	if err != nil {
 		return nil, err
 	}
-
-	log.Println("fazendo requisição...")
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -62,15 +58,10 @@ func requestExchange(ctx context.Context) (*Exchange, error) {
 		return nil, errors.New("quotation request timeout")
 	}
 
-	log.Println("lendo requisição...")
-
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
 	}
-
-	log.Println("json requisição...")
-	log.Println(body)
 
 	var data Exchange
 	err = json.Unmarshal(body, &data)
@@ -84,7 +75,7 @@ func requestExchange(ctx context.Context) (*Exchange, error) {
 }
 
 func exportExchange(exchange Exchange) error {
-	log.Println("Exporting quotation...")
+	log.Println("Exporting Quotation...")
 
 	f, err := os.Create(EXPORT_FILENAME)
 	if err != nil {
