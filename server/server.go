@@ -7,16 +7,39 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"time"
 
-	"go-client-server-api/server/constants"
-	"go-client-server-api/server/database"
-	"go-client-server-api/server/models"
+	_ "github.com/mattn/go-sqlite3"
 )
+
+const EXCHANGE_URL = "https://economia.awesomeapi.com.br/json/last/USD-BRL"
+const EXCHANGE_REQUEST_TIMEOUT = 200 * time.Millisecond
+const EXCHANGE_PERSIST_TIMEOUT = 10 * time.Millisecond
+
+type USDBRL struct {
+	USDBRL Exchange `json:"USDBRL"`
+}
+
+type Exchange struct {
+	Code       string `json:"code"`
+	CodeIn     string `json:"codein"`
+	Name       string `json:"name"`
+	High       string `json:"high"`
+	Low        string `json:"low"`
+	VarBid     string `json:"varBid"`
+	PctChange  string `json:"pctChange"`
+	Bid        string `json:"bid"`
+	Ask        string `json:"ask"`
+	Timestamp  string `json:"timestamp"`
+	CreateDate string `json:"create_date"`
+}
+
+var db *sql.DB
 
 func main() {
 	log.Println("App started")
 
-	db := database.OpenDatabase()
+	OpenDatabase()
 	defer db.Close()
 
 	http.HandleFunc("/health", handlerHealth)
@@ -43,7 +66,7 @@ func handlerQuotation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = persistExchange(ctx, database.GetDatabase(), response)
+	err = persistExchange(ctx, db, response)
 	if err != nil {
 		log.Println("ERROR: Persist Timeout")
 		w.WriteHeader(http.StatusGatewayTimeout)
@@ -55,11 +78,43 @@ func handlerQuotation(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func requestExchange(ctx context.Context) (*models.Exchange, error) {
-	ctx, cancel := context.WithTimeout(ctx, constants.EXCHANGE_REQUEST_TIMEOUT)
+func OpenDatabase() {
+	var err error
+
+	db, err = sql.Open("sqlite3", "./db.sqlite")
+	if err != nil {
+		panic(err)
+	}
+
+	stmt := `
+        CREATE TABLE IF NOT EXISTS exchanges(
+            id INTEGER PRIMARY KEY,
+            code TEXT,
+            code_in TEXT,
+            name TEXT,
+            high TEXT,
+            low TEXT,
+            var_bid TEXT,
+            pct_change TEXT,
+            bid TEXT,
+            ask TEXT,
+            timestamp TEXT,
+            create_date TEXT,
+			persist_date DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+    `
+	_, err = db.Exec(stmt)
+
+	if err != nil {
+		panic(err)
+	}
+}
+
+func requestExchange(ctx context.Context) (*Exchange, error) {
+	ctx, cancel := context.WithTimeout(ctx, EXCHANGE_REQUEST_TIMEOUT)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, "GET", constants.EXCHANGE_URL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", EXCHANGE_URL, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -75,7 +130,7 @@ func requestExchange(ctx context.Context) (*models.Exchange, error) {
 		panic(err)
 	}
 
-	var data models.USDBRL
+	var data USDBRL
 	err = json.Unmarshal(body, &data)
 	if err != nil {
 		panic(err)
@@ -84,8 +139,8 @@ func requestExchange(ctx context.Context) (*models.Exchange, error) {
 	return &data.USDBRL, nil
 }
 
-func persistExchange(ctx context.Context, db *sql.DB, e *models.Exchange) error {
-	ctx, cancel := context.WithTimeout(ctx, constants.EXCHANGE_PERSIST_TIMEOUT)
+func persistExchange(ctx context.Context, db *sql.DB, e *Exchange) error {
+	ctx, cancel := context.WithTimeout(ctx, EXCHANGE_PERSIST_TIMEOUT)
 	defer cancel()
 
 	stmt, err := db.PrepareContext(ctx, "INSERT INTO exchanges(code, code_in, name, high, low, var_bid, pct_change, bid, ask, timestamp, create_date) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
